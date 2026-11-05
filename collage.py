@@ -69,6 +69,20 @@ LAYOUTS: dict[str, list[Rect]] = {
     "9 fotos · 3×3": [
         (c / 3, r / 3, 1 / 3, 1 / 3) for r in range(3) for c in range(3)
     ],
+    # Filas de fotos: cada fila puede tener una pareja (2 fotos lado a lado).
+    "6 fotos · 3 parejas": [
+        rect
+        for r in range(3)
+        for rect in (
+            (0.0, r / 3, 0.5, 1 / 3),
+            (0.5, r / 3, 0.5, 1 / 3),
+        )
+    ],
+    # Fotos apiladas verticalmente (ideal para formatos verticales tipo stories).
+    "2 fotos · vertical": [
+        (0.0, 0.0, 1.0, 0.5),
+        (0.0, 0.5, 1.0, 0.5),
+    ],
 }
 
 ASPECTS: dict[str, tuple[int, int]] = {
@@ -84,13 +98,37 @@ ASPECTS: dict[str, tuple[int, int]] = {
 PLACEHOLDER_BG = "#E8EDF3"
 PLACEHOLDER_FG = "#9AA6B6"
 
-FONT_CANDIDATES = (
-    "C:/Windows/Fonts/segoeuib.ttf",
-    "C:/Windows/Fonts/arialbd.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-)
+FONT_FAMILIES: dict[str, tuple[str, ...]] = {
+    "bold": (
+        "C:/Windows/Fonts/segoeuib.ttf",
+        "C:/Windows/Fonts/arialbd.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+    ),
+    "hand": (
+        "C:/Windows/Fonts/segoescr.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ),
+    "serif": (
+        "C:/Windows/Fonts/georgia.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
+    ),
+    "mono": (
+        "C:/Windows/Fonts/consola.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+    ),
+}
+
+FONT_LABELS: dict[str, str] = {
+    "bold": "Negrita",
+    "hand": "Manuscrita",
+    "serif": "Serif",
+    "mono": "Mono",
+}
 
 # --------------------------------------------------------------------------- #
 # Fondos prediseñados
@@ -222,6 +260,7 @@ class Style:
     radius: int = 30
     background: str = "#FFFFFF"
     caption: str = ""
+    font: str = "bold"
     background_preset: str | None = None
     background_image: Image.Image | None = None
     background_blur: float = 0.0
@@ -234,8 +273,8 @@ class Style:
 
 
 @lru_cache(maxsize=256)
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in FONT_CANDIDATES:
+def _font(size: int, family: str = "bold") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    for path in FONT_FAMILIES.get(family, FONT_FAMILIES["bold"]):
         if Path(path).exists():
             try:
                 return ImageFont.truetype(path, size)
@@ -577,15 +616,20 @@ def _pixel_rect(
 
 
 def _fit_text(
-    draw: ImageDraw.ImageDraw, text: str, max_width: int, start: int, floor: int = 18
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    max_width: int,
+    start: int,
+    floor: int = 18,
+    family: str = "bold",
 ) -> tuple[ImageFont.ImageFont, str]:
     size = start
     while size > floor:
-        font = _font(size)
+        font = _font(size, family)
         if draw.textlength(text, font=font) <= max_width:
             return font, text
         size -= 2
-    font = _font(floor)
+    font = _font(floor, family)
     clipped = text
     while clipped and draw.textlength(clipped + "…", font=font) > max_width:
         clipped = clipped[:-1]
@@ -648,7 +692,7 @@ def render_collage(
 
     for box, _radius, w, h, index in empties:
         number = str(index + 1)
-        font = _font(max(24, min(w, h) // 5))
+        font = _font(max(24, min(w, h) // 5), style.font)
         tw = draw.textlength(number, font=font)
         ascent, descent = font.getmetrics()
         draw.text(
@@ -662,7 +706,12 @@ def render_collage(
         top = height - style.margin - caption_h
         band_w = width - 2 * style.margin
         font, text = _fit_text(
-            draw, caption, band_w, start=int(caption_h * 0.62), floor=18
+            draw,
+            caption,
+            band_w,
+            start=int(caption_h * 0.62),
+            floor=18,
+            family=style.font,
         )
         cx, cy = width / 2, top + caption_h / 2
         shadow = (0, 0, 0, 120)

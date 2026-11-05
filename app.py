@@ -19,6 +19,8 @@ from PIL import Image, ImageDraw, ImageOps
 
 from collage import (
     ASPECTS,
+    FONT_FAMILIES,
+    FONT_LABELS,
     LAYOUTS,
     PRESETS,
     Style,
@@ -67,7 +69,9 @@ LAYOUT_LABELS = {
     "4 fotos · cuadrícula": "4 · grid",
     "5 fotos · 1 + 4": "5 · 1+4",
     "6 fotos · 3×2": "6 · 3×2",
+    "6 fotos · 3 parejas": "6 · parejas",
     "9 fotos · 3×3": "9 · 3×3",
+    "2 fotos · vertical": "2 · stack",
 }
 
 CSS = """
@@ -127,6 +131,7 @@ def build_collage(
     bg_dim: float,
     fmt: str,
     max_side: int | None,
+    font: str = "bold",
 ) -> bytes:
     images = {idx: as_image(data) for idx, data in items}
     style = Style(
@@ -135,6 +140,7 @@ def build_collage(
         radius=radius,
         background=background,
         caption=caption,
+        font=font,
         background_preset=bg_preset,
         background_image=as_image(bg_image) if bg_image else None,
         background_blur=float(bg_blur),
@@ -385,6 +391,7 @@ st.session_state.setdefault("bg_custom_src", None)
 st.session_state.setdefault("bg_blur", 14)
 st.session_state.setdefault("bg_dim", 18)
 st.session_state.setdefault("bg_color", "#FFFFFF")
+st.session_state.setdefault("font", "bold")   # fuente del texto del collage
 
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(
@@ -695,6 +702,12 @@ with st.expander("🎛️ 4. Ajustes finos", expanded=False):
     margin = c1.slider("Margen", 0, 100, 48, step=2)
     gap = c2.slider("Separación", 0, 40, 18, step=1)
     radius = st.slider("Esquinas redondeadas", 0, 90, 30, step=2)
+    font = st.selectbox(
+        "Fuente del texto",
+        list(FONT_LABELS.keys()),
+        index=0,
+        format_func=lambda f: FONT_LABELS.get(f, f),
+    )
     caption = st.text_input(
         "Texto al pie (opcional)",
         max_chars=70,
@@ -727,6 +740,7 @@ signature = hashlib.sha1(
             radius,
             background_color,
             caption,
+            font,
             bg_preset,
             hashlib.sha1(bg_image).hexdigest() if bg_image else None,
             bg_blur,
@@ -748,6 +762,7 @@ args = dict(
     radius=radius,
     background=background_color,
     caption=caption,
+    font=font,
     bg_preset=bg_preset,
     bg_image=bg_image,
     bg_blur=bg_blur,
