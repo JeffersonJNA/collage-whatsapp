@@ -564,26 +564,26 @@ if filled:
                         br1, br2, br3, br4 = st.columns(4, gap="small")
                         with br1:
                             if st.button("⟲", key=f"rotL_{idx}", help="Rotar a la izquierda 90°"):
-                                r, z = t.get(idx, (0, 1.0))
-                                t[idx] = ((r - 90) % 360, z)
+                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                t[idx] = ((r - 90) % 360, z, dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br2:
                             if st.button("⟳", key=f"rotR_{idx}", help="Rotar a la derecha 90°"):
-                                r, z = t.get(idx, (0, 1.0))
-                                t[idx] = ((r + 90) % 360, z)
+                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                t[idx] = ((r + 90) % 360, z, dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br3:
                             if st.button("🔍+", key=f"zoomP_{idx}", help="Acercar la foto"):
-                                r, z = t.get(idx, (0, 1.0))
-                                t[idx] = (r, min(3.0, round(z * 1.25, 2)))
+                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                t[idx] = (r, min(3.0, round(z * 1.25, 2)), dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br4:
                             if st.button("🔍−", key=f"zoomM_{idx}", help="Alejar la foto"):
-                                r, z = t.get(idx, (0, 1.0))
-                                t[idx] = (r, max(0.5, round(z / 1.25, 2)))
+                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                t[idx] = (r, max(0.5, round(z / 1.25, 2)), dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         if st.button(
@@ -804,6 +804,49 @@ args = dict(
     bg_blur=bg_blur,
     bg_dim=bg_dim,
 )
+
+# --- Editor junto a la vista previa: editas y ves el resultado al instante --- #
+if filled:
+    with st.expander("✏️ Ajustar fotos (mover, rotar, zoom)", expanded=False):
+        editable = [idx for idx, _ in items]
+        sel_idx = st.session_state.get("edit_slot")
+        if sel_idx not in editable:
+            sel_idx = editable[0] if editable else None
+        opts = [f"Foto {i + 1}" for i, _ in items]
+        pick = st.selectbox(
+            "Foto a ajustar",
+            range(len(editable)),
+            index=editable.index(sel_idx) if sel_idx in editable else 0,
+            format_func=lambda i: f"Foto {editable[i] + 1}",
+            label_visibility="collapsed",
+        )
+        slot = editable[pick]
+        tr = dict(st.session_state.get("transforms") or {})
+        rot, zoom, dx, dy = tr.get(slot, (0, 1.0, 0.0, 0.0))
+
+        ec1, ec2, ec3 = st.columns(3)
+        with ec1:
+            if st.button("⟲", help="Rotar izquierda", use_container_width=True):
+                tr[slot] = ((rot - 90) % 360, zoom, dx, dy)
+                st.session_state["transforms"] = tr
+                st.rerun()
+        with ec2:
+            if st.button("⟳", help="Rotar derecha", use_container_width=True):
+                tr[slot] = ((rot + 90) % 360, zoom, dx, dy)
+                st.session_state["transforms"] = tr
+                st.rerun()
+        with ec3:
+            if st.button("↺ Reset", help="Dejar la foto como estaba", use_container_width=True):
+                tr.pop(slot, None)
+                st.session_state["transforms"] = tr
+                st.rerun()
+        new_zoom = st.slider("Zoom", 0.5, 3.0, zoom, step=0.05, key=f"z_{slot}")
+        new_dx = st.slider("Mover ↔", -1.0, 1.0, dx, step=0.05, key=f"x_{slot}")
+        new_dy = st.slider("Mover ↕", -1.0, 1.0, dy, step=0.05, key=f"y_{slot}")
+        if (new_zoom, new_dx, new_dy) != (zoom, dx, dy):
+            tr[slot] = (rot, new_zoom, new_dx, new_dy)
+            st.session_state["transforms"] = tr
+            st.rerun()
 
 preview_png = build_collage(template, aspect, items, fmt="PNG", max_side=None, **args)
 st.image(preview_png, width="stretch")

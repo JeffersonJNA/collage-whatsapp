@@ -261,7 +261,7 @@ class Style:
     background: str = "#FFFFFF"
     caption: str = ""
     font: str = "bold"
-    transforms: dict[int, tuple[int, float]] = field(default_factory=dict)
+    transforms: dict[int, tuple] = field(default_factory=dict)  # slot -> (rot, zoom, dx, dy)
     background_preset: str | None = None
     background_image: Image.Image | None = None
     background_blur: float = 0.0
@@ -591,10 +591,34 @@ def _hairline(background: str) -> str:
     return "#E5E7EB" if contrast_color(background) == "#111827" else "#1F2937"
 
 
-def _cover(img: Image.Image, size: tuple[int, int]) -> Image.Image:
-    return ImageOps.fit(
-        img.convert("RGB"), size, method=Image.LANCZOS, centering=(0.5, 0.42)
+def _cover(
+    img: Image.Image,
+    size: tuple[int, int],
+    dx: float = 0.0,
+    dy: float = 0.0,
+) -> Image.Image:
+    """Recorta la imagen para llenar `size` (cover), con desplazamiento (pan).
+
+    dx/dy en rango -1..1: -1 = borde izquierdo/arriba, 0 = centro, 1 = borde derecho/abajo.
+    """
+    src_w, src_h = img.size
+    dst_w, dst_h = size
+    scale = max(dst_w / src_w, dst_h / src_h)
+    crop_w = dst_w / scale
+    crop_h = dst_h / scale
+    # margen disponible para mover dentro de la imagen escalada
+    free_x = max(0.0, src_w * scale - dst_w) / 2
+    free_y = max(0.0, src_h * scale - dst_h) / 2
+    cx = src_w / 2 + dx * free_x / max(scale, 1e-6)
+    cy = src_h / 2 + dy * free_y / max(scale, 1e-6)
+    left = min(max(cx - crop_w / 2, 0), max(0, src_w - crop_w))
+    top = min(max(cy - crop_h / 2, 0), max(0, src_h - crop_h))
+    tile = img.resize((max(1, round(src_w * scale)), max(1, round(src_h * scale))), Image.LANCZOS).crop(
+        (round(left), round(top), round(left + crop_w), round(top + crop_h))
     )
+    if tile.size != (dst_w, dst_h):
+        tile = tile.resize((dst_w, dst_h), Image.LANCZOS)
+    return tile
 
 
 def _pixel_rect(
@@ -682,7 +706,7 @@ def render_collage(
 
         tile_img = photo
         tr = style.transforms.get(index) if style.transforms else None
-        rot, zoom = tr if tr else (0, 1.0)
+        rot, zoom, dx, dy = tr if tr else (0, 1.0, 0.0, 0.0)
         if rot:
             tile_img = tile_img.rotate(rot, expand=True)
         if zoom != 1.0:
@@ -690,7 +714,7 @@ def render_collage(
                 (max(1, round(tile_img.width * zoom)), max(1, round(tile_img.height * zoom))),
                 Image.LANCZOS,
             )
-        tile = _cover(tile_img, (w, h))
+        tile = _cover(tile_img, (w, h), dx, dy)
         canvas.paste(tile, (box[0], box[1]), _rounded_mask((w, h), radius))
 
         # Borde interior muy sutil: separa las fotos del fondo.
