@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -261,6 +261,7 @@ class Style:
     background: str = "#FFFFFF"
     caption: str = ""
     font: str = "bold"
+    transforms: dict[int, tuple[int, float]] = field(default_factory=dict)
     background_preset: str | None = None
     background_image: Image.Image | None = None
     background_blur: float = 0.0
@@ -679,7 +680,17 @@ def render_collage(
             empties.append((box, radius, w, h, index))
             continue
 
-        tile = _cover(photo, (w, h))
+        tile_img = photo
+        tr = style.transforms.get(index) if style.transforms else None
+        rot, zoom = tr if tr else (0, 1.0)
+        if rot:
+            tile_img = tile_img.rotate(rot, expand=True)
+        if zoom != 1.0:
+            tile_img = tile_img.resize(
+                (max(1, round(tile_img.width * zoom)), max(1, round(tile_img.height * zoom))),
+                Image.LANCZOS,
+            )
+        tile = _cover(tile_img, (w, h))
         canvas.paste(tile, (box[0], box[1]), _rounded_mask((w, h), radius))
 
         # Borde interior muy sutil: separa las fotos del fondo.

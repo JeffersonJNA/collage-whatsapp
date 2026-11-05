@@ -98,6 +98,13 @@ div[data-testid="stExpander"] details {border-radius: 16px;}
   width: 100%; max-width: 100%; height: auto; border-radius: 12px;
 }
 .st-key-thumbs [data-testid="stElementContainer"] {margin-bottom: 0.15rem;}
+/* Botones de edicion por foto: compactos, en fila, tactiles */
+.st-key-thumbs .stButton > button {
+  min-width: 44px !important; height: 38px !important; padding: 0 8px !important;
+  font-size: 15px !important; line-height: 1 !important; border-radius: 10px !important;
+  font-weight: 700;
+}
+.st-key-thumbs [data-testid="stHorizontalBlock"] {gap: 4px !important;}
 div[data-testid="stHorizontalBlock"] {gap: 0.5rem;}
 </style>
 """
@@ -141,6 +148,7 @@ def build_collage(
         background=background,
         caption=caption,
         font=font,
+        transforms=dict(st.session_state.get("transforms") or {}),
         background_preset=bg_preset,
         background_image=as_image(bg_image) if bg_image else None,
         background_blur=float(bg_blur),
@@ -392,6 +400,7 @@ st.session_state.setdefault("bg_blur", 14)
 st.session_state.setdefault("bg_dim", 18)
 st.session_state.setdefault("bg_color", "#FFFFFF")
 st.session_state.setdefault("font", "bold")   # fuente del texto del collage
+st.session_state.setdefault("transforms", {}) # rotacion / ajuste por foto (slot -> (rot, zoom))
 
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(
@@ -551,6 +560,32 @@ if filled:
                 with col:
                     if idx in photos:
                         st.image(thumb(photos[idx]), width="stretch")
+                        t = dict(st.session_state.get("transforms") or {})
+                        br1, br2, br3, br4 = st.columns(4, gap="small")
+                        with br1:
+                            if st.button("⟲", key=f"rotL_{idx}", help="Rotar a la izquierda 90°"):
+                                r, z = t.get(idx, (0, 1.0))
+                                t[idx] = ((r - 90) % 360, z)
+                                st.session_state["transforms"] = t
+                                st.rerun()
+                        with br2:
+                            if st.button("⟳", key=f"rotR_{idx}", help="Rotar a la derecha 90°"):
+                                r, z = t.get(idx, (0, 1.0))
+                                t[idx] = ((r + 90) % 360, z)
+                                st.session_state["transforms"] = t
+                                st.rerun()
+                        with br3:
+                            if st.button("🔍+", key=f"zoomP_{idx}", help="Acercar la foto"):
+                                r, z = t.get(idx, (0, 1.0))
+                                t[idx] = (r, min(3.0, round(z * 1.25, 2)))
+                                st.session_state["transforms"] = t
+                                st.rerun()
+                        with br4:
+                            if st.button("🔍−", key=f"zoomM_{idx}", help="Alejar la foto"):
+                                r, z = t.get(idx, (0, 1.0))
+                                t[idx] = (r, max(0.5, round(z / 1.25, 2)))
+                                st.session_state["transforms"] = t
+                                st.rerun()
                         if st.button(
                             "🗑", key=f"del_{template}_{idx}", help="Repetir esta foto"
                         ):
@@ -741,6 +776,7 @@ signature = hashlib.sha1(
             background_color,
             caption,
             font,
+            {k: v for k, v in sorted((st.session_state.get("transforms") or {}).items())},
             bg_preset,
             hashlib.sha1(bg_image).hexdigest() if bg_image else None,
             bg_blur,
@@ -877,6 +913,7 @@ with st.expander("♻️ Reiniciar / opciones", expanded=False):
         st.session_state.bg_dim = 18
         st.session_state.bg_color = "#FFFFFF"
         st.session_state.template = "4 fotos · cuadrícula"
+        st.session_state.transforms = {}
         st.rerun()
     st.caption("Las fotos viven solo en esta sesión: recargar la página también las borra.")
 
