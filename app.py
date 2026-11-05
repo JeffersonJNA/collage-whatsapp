@@ -512,6 +512,8 @@ else:
 
 filled = len(photos)
 st.progress(filled / total, text=f"{filled} de {total} fotos")
+# Permite compartir el collage (con imagen) o solo el texto.
+puede_compartir = filled > 0
 
 if target is not None:
     shot = st.camera_input(
@@ -809,7 +811,13 @@ if not written.strip():
 elif error:
     st.button("💬 Abrir chat de WhatsApp", disabled=True, width="stretch")
     st.caption(f"⚠️ {error}")
-else:
+elif st.button("💬 Abrir chat de WhatsApp", width="stretch", disabled=not puede_compartir):
+    # Botón principal: genera el collage y lo envía CON la imagen + el texto.
+    st.session_state["share_payload"] = build_collage(
+        template, aspect, items, fmt="JPEG", max_side=1600, **args
+    )
+elif filled == 0:
+    # Sin foto todavia: solo texto por el enlace wa.me (la imagen se agrega desde el chat).
     link = f"https://wa.me/{number}"
     if message.strip():
         link += f"?text={quote(message.strip())}"
@@ -818,33 +826,27 @@ else:
         link,
         type="primary",
         width="stretch",
-        disabled=filled == 0,
+    )
+
+if st.session_state.get("share_payload"):
+    share_widget(
+        st.session_state["share_payload"],
+        f"{base_name}.jpg",
+        message.strip() or "Te comparto este collage 📸",
     )
 
 with st.expander("📎 ¿Y la imagen? Cómo enviarla de verdad"):
     st.markdown(
         """
-- **Enlace `wa.me`**: abre el chat con ese número y el mensaje escrito, pero **WhatsApp no acepta adjuntar
-  archivos desde un link**. La foto se adjunta dentro del chat.
-- **Móvil (recomendado)**: usa el botón de abajo; abre el menú del sistema con la imagen ya cargada y eliges
-  WhatsApp → contacto.
+- **Botón principal (recomendado)**: cuando ya tienes fotos, **«Abrir chat de WhatsApp»** genera el collage
+  y envía **imagen + texto** en un solo paso (menú de compartir → WhatsApp).
+- **Solo texto**: usa el botón de abajo; el enlace `wa.me` abre el chat con el número y el mensaje escrito,
+  pero **WhatsApp no acepta adjuntar archivos desde un link**. La foto se adjunta dentro del chat.
 - **PC**: descarga el JPG y arrástralo al chat de WhatsApp Web.
 - **Envío 100 % automático**: requiere la *WhatsApp Cloud API* (cuenta de Meta Business, token y plantilla
   aprobada). No se puede con solo un número; se configura aparte.
 """
     )
-
-if filled:
-    if st.button("📲 Preparar envío directo de la imagen", width="stretch"):
-        st.session_state["share_payload"] = build_collage(
-            template, aspect, items, fmt="JPEG", max_side=1600, **args
-        )
-    if st.session_state.get("share_payload"):
-        share_widget(
-            st.session_state["share_payload"],
-            f"{base_name}.jpg",
-            message.strip() or "Te comparto este collage 📸",
-        )
 
 st.divider()
 with st.expander("♻️ Reiniciar / opciones", expanded=False):
