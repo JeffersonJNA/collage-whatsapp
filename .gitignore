@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.streamlit/secrets.toml
+
+# artefactos de desarrollo
+tools/sample_*.jpg
+tools/dbg*.py
+tools/*.png
+tools/e2e_descarga.png
