@@ -564,25 +564,25 @@ if filled:
                         br1, br2, br3, br4 = st.columns(4, gap="small")
                         with br1:
                             if st.button("⟲", key=f"rotL_{idx}", help="Rotar a la izquierda 90°"):
-                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                r, z, dx, dy = (*t.get(idx, (0, 1.0, 0.0, 0.0)), 0.0, 0.0)[:4]
                                 t[idx] = ((r - 90) % 360, z, dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br2:
                             if st.button("⟳", key=f"rotR_{idx}", help="Rotar a la derecha 90°"):
-                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                r, z, dx, dy = (*t.get(idx, (0, 1.0, 0.0, 0.0)), 0.0, 0.0)[:4]
                                 t[idx] = ((r + 90) % 360, z, dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br3:
                             if st.button("🔍+", key=f"zoomP_{idx}", help="Acercar la foto"):
-                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                r, z, dx, dy = (*t.get(idx, (0, 1.0, 0.0, 0.0)), 0.0, 0.0)[:4]
                                 t[idx] = (r, min(3.0, round(z * 1.25, 2)), dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
                         with br4:
                             if st.button("🔍−", key=f"zoomM_{idx}", help="Alejar la foto"):
-                                r, z, dx, dy = t.get(idx, (0, 1.0, 0.0, 0.0))
+                                r, z, dx, dy = (*t.get(idx, (0, 1.0, 0.0, 0.0)), 0.0, 0.0)[:4]
                                 t[idx] = (r, max(0.5, round(z / 1.25, 2)), dx, dy)
                                 st.session_state["transforms"] = t
                                 st.rerun()
@@ -822,7 +822,7 @@ if filled:
         )
         slot = editable[pick]
         tr = dict(st.session_state.get("transforms") or {})
-        rot, zoom, dx, dy = tr.get(slot, (0, 1.0, 0.0, 0.0))
+        rot, zoom, dx, dy = (*tr.get(slot, (0, 1.0, 0.0, 0.0)), 0.0, 0.0)[:4]
 
         ec1, ec2, ec3 = st.columns(3)
         with ec1:

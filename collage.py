@@ -706,6 +706,8 @@ def render_collage(
 
         tile_img = photo
         tr = style.transforms.get(index) if style.transforms else None
+        if tr and len(tr) < 4:
+            tr = (*tr, 0.0, 0.0)
         rot, zoom, dx, dy = tr if tr else (0, 1.0, 0.0, 0.0)
         if rot:
             tile_img = tile_img.rotate(rot, expand=True)
